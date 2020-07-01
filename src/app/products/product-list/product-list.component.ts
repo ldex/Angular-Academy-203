@@ -1,8 +1,8 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormControl } from '@angular/forms';
 import { Observable, EMPTY, combineLatest, Subscription } from 'rxjs';
-import { tap, catchError, startWith, count, flatMap, map, debounceTime, filter } from 'rxjs/operators';
+import { tap, catchError, startWith, count, flatMap, map, debounceTime, filter, distinctUntilChanged } from 'rxjs/operators';
 
 import { Product } from '../product.interface';
 import { ProductService } from '../product.service';
@@ -17,14 +17,22 @@ export class ProductListComponent implements OnInit {
 
   title: string = 'Products';
   selectedProduct: Product;
-  productsNb = 0;
+ // productsNb = 0;
   errorMessage;
+  filter: FormControl = new FormControl("");
+  favouriteAdded$: Observable<Product>;
 
   // Pagination
   pageSize = 5;
   start = 0;
   end = this.pageSize;
   currentPage = 1;
+
+  firstPage() {
+    this.start = 0;
+    this.end = this.pageSize;
+    this.currentPage = 1;
+  }
 
   previousPage() {
     this.start -= this.pageSize;
@@ -55,8 +63,18 @@ export class ProductListComponent implements OnInit {
     private router: Router) {
   }
 
+
   ngOnInit(): void {
-    this.router.routeReuseStrategy.shouldReuseRoute = () => false
+    this.router.routeReuseStrategy.shouldReuseRoute = () => false;
+
+    this.favouriteAdded$ = this
+          .favouriteService
+          .favouriteAdded$
+          .pipe(
+            tap(console.log)
+          )
+    
+
   }
 
   refresh() {
@@ -68,6 +86,40 @@ export class ProductListComponent implements OnInit {
     .productService
     .products$
     .pipe(
-      tap(products => this.productsNb = products.length)
+     
     );
+
+  filter$ = this
+    .filter
+    .valueChanges
+    .pipe(
+      map(text => text.trim()),
+      filter(text => text == '' || text.length > 2),
+      debounceTime(500),
+      distinctUntilChanged(),
+      startWith(""),
+      tap(text => this.firstPage())
+    )
+
+  filteredProducts$ = combineLatest([this.products$, this.filter$])
+  .pipe(
+    map(([products, filterString]) =>
+      products.filter(product => 
+        product.name.toLowerCase().includes(filterString.toLowerCase())
+      )
+    )
+  )
+
+  filtered$ = this
+                .filter$
+                .pipe(
+                  map(text => text.length > 0)
+                );
+
+  productsNb$ = this
+                  .filteredProducts$
+                  .pipe(
+                    map(products => products.length),
+                    startWith(0)
+                  );
 }

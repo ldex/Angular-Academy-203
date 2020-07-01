@@ -2,8 +2,12 @@
     {{ title }}
 </h2>
 
+<h3 *ngIf="favouriteAdded$ | async as product">
+    Product {{ product.name }} added to your favourites!
+</h3>
+
 <div class="right">
-    {{ productsNb }} products |
+    {{ productsNb$ | async }} products <span *ngIf="filtered$ | async">(filtered)</span> |
 
     {favourites, plural,
     =0 {no favourite}
@@ -12,15 +16,14 @@
     }
 </div>
 <div> 
-    <!-- Search: <input type="text" [formControl]="filter" placeholder="filter by name"> -->
-    &nbsp;
+    Search: <input type="text" [formControl]="filter" placeholder="filter by name">
 </div>
 
 <ng-template #loading>
     <h2 class="loading">Loading products</h2>
 </ng-template>
 
-<ul class="products" *ngIf="products$ | async as products;else loading">
+<ul class="products" *ngIf="filteredProducts$ | async as products;else loading">
     <li *ngFor="let product of products | slice:start:end"
         (click)="onSelect(product)"
         [class.discontinued]="product.discontinued"
@@ -44,7 +47,7 @@
     </button>
     Page {{ currentPage }}
     <button (click)="nextPage()"
-            [disabled]="productsNb <= end">
+            [disabled]="(productsNb$ | async) <= end">
         Next Page >
     </button>
 </div>
